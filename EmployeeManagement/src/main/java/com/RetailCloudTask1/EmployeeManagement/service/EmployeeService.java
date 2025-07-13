@@ -7,6 +7,8 @@ import com.RetailCloudTask1.EmployeeManagement.model.Employee;
 import com.RetailCloudTask1.EmployeeManagement.repository.DepartmentRepository;
 import com.RetailCloudTask1.EmployeeManagement.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +26,10 @@ public class EmployeeService {
         return employeeRepository.save(employee);
     }
 
+    public List<Employee> saveAllEmployees(List<Employee> employees) {
+        return employeeRepository.saveAll(employees);
+    }
+
     @Transactional
     public Employee updateEmployee(Long id, Employee updatedEmployee) {
         Employee existing = employeeRepository.findById(id)
@@ -37,7 +43,6 @@ public class EmployeeService {
         existing.setJoiningDate(updatedEmployee.getJoiningDate());
         existing.setYearlyBonusPercentage(updatedEmployee.getYearlyBonusPercentage());
 
-        // For department and manager, load fresh from DB to avoid detached entities
         if (updatedEmployee.getDepartment() != null && updatedEmployee.getDepartment().getId() != null) {
             Department dept = departmentRepository.findById(updatedEmployee.getDepartment().getId())
                     .orElseThrow(() -> new RuntimeException("Department not found"));
@@ -58,11 +63,44 @@ public class EmployeeService {
     }
 
     @Transactional
+    public List<Employee> updateEmployees(List<Employee> updatedEmployees) {
+        return updatedEmployees.stream().map(emp -> {
+            Employee existing = employeeRepository.findById(emp.getId())
+                    .orElseThrow(() -> new RuntimeException("Employee not found with id: " + emp.getId()));
+
+            existing.setName(emp.getName());
+            existing.setDateOfBirth(emp.getDateOfBirth());
+            existing.setSalary(emp.getSalary());
+            existing.setAddress(emp.getAddress());
+            existing.setRole(emp.getRole());
+            existing.setJoiningDate(emp.getJoiningDate());
+            existing.setYearlyBonusPercentage(emp.getYearlyBonusPercentage());
+
+            if (emp.getDepartment() != null && emp.getDepartment().getId() != null) {
+                Department dept = departmentRepository.findById(emp.getDepartment().getId())
+                        .orElseThrow(() -> new RuntimeException("Department not found"));
+                existing.setDepartment(dept);
+            } else {
+                existing.setDepartment(null);
+            }
+
+            if (emp.getReportingManager() != null && emp.getReportingManager().getId() != null) {
+                Employee manager = employeeRepository.findById(emp.getReportingManager().getId())
+                        .orElseThrow(() -> new RuntimeException("Manager not found"));
+                existing.setReportingManager(manager);
+            } else {
+                existing.setReportingManager(null);
+            }
+
+            return existing;
+        }).map(employeeRepository::save).toList();
+    }
+
+    @Transactional
     public void deleteEmployee(Long id) {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found with id: " + id));
 
-        // Remove this employee as department head if assigned
         departmentRepository.findAll().forEach(dept -> {
             if (dept.getDepartmentHead() != null && dept.getDepartmentHead().getId().equals(id)) {
                 dept.setDepartmentHead(null);
@@ -77,6 +115,21 @@ public class EmployeeService {
         Employee emp = employeeRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Employee not found"));
 
+        return convertToEmployeeDto(emp);
+    }
+
+    public List<EmployeeLookupDto> getAllNameAndIds() {
+        return employeeRepository.findAll()
+                .stream()
+                .map(e -> new EmployeeLookupDto(e.getId(), e.getName()))
+                .toList();
+    }
+
+    public Page<Employee> getAllEmployees(Pageable pageable) {
+        return employeeRepository.findAll(pageable);
+    }
+
+    public EmployeeDto convertToEmployeeDto(Employee emp) {
         return EmployeeDto.builder()
                 .id(emp.getId())
                 .name(emp.getName())
@@ -93,17 +146,6 @@ public class EmployeeService {
                 .build();
     }
 
-    public List<EmployeeLookupDto> getAllNameAndIds() {
-        return employeeRepository.findAll()
-                .stream()
-                .map(e -> new EmployeeLookupDto(e.getId(), e.getName()))
-                .toList();
-    }
-
-    public List<Employee> getAllEmployees() {
-        return employeeRepository.findAll();
-    }
-
     @Transactional
     public Employee changeDepartment(Long employeeId, Long departmentId) {
         Employee employee = employeeRepository.findById(employeeId)
@@ -113,6 +155,12 @@ public class EmployeeService {
                 .orElseThrow(() -> new RuntimeException("Department not found"));
 
         employee.setDepartment(dept);
+
+        if (dept.getDepartmentHead() != null) {
+            employee.setReportingManager(dept.getDepartmentHead());
+        } else {
+            employee.setReportingManager(null);
+        }
         return employeeRepository.save(employee);
     }
 }

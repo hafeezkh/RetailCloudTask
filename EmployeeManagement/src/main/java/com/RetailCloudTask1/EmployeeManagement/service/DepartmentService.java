@@ -1,10 +1,15 @@
 package com.RetailCloudTask1.EmployeeManagement.service;
 
+import com.RetailCloudTask1.EmployeeManagement.dto.DepartmentDto;
 import com.RetailCloudTask1.EmployeeManagement.dto.DepartmentWithEmployeeDto;
 import com.RetailCloudTask1.EmployeeManagement.dto.EmployeeLookupDto;
 import com.RetailCloudTask1.EmployeeManagement.model.Department;
+import com.RetailCloudTask1.EmployeeManagement.model.Employee;
 import com.RetailCloudTask1.EmployeeManagement.repository.DepartmentRepository;
+import com.RetailCloudTask1.EmployeeManagement.repository.EmployeeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -15,8 +20,14 @@ import java.util.stream.Collectors;
 public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
+    private final EmployeeRepository employeeRepository;
 
     public Department addDepartment(Department department) {
+        if (department.getDepartmentHead() != null && department.getDepartmentHead().getId() != null) {
+            Employee head = employeeRepository.findById(department.getDepartmentHead().getId())
+                    .orElseThrow(() -> new RuntimeException("Department head not found with id: " + department.getDepartmentHead().getId()));
+            department.setDepartmentHead(head);
+        }
         return departmentRepository.save(department);
     }
 
@@ -26,7 +37,14 @@ public class DepartmentService {
 
         existing.setName(updatedDepartment.getName());
         existing.setCreationDate(updatedDepartment.getCreationDate());
-        existing.setDepartmentHead(updatedDepartment.getDepartmentHead());
+
+        if (updatedDepartment.getDepartmentHead() != null && updatedDepartment.getDepartmentHead().getId() != null) {
+            Employee head = employeeRepository.findById(updatedDepartment.getDepartmentHead().getId())
+                    .orElseThrow(() -> new RuntimeException("Department head not found with id: " + updatedDepartment.getDepartmentHead().getId()));
+            existing.setDepartmentHead(head);
+        } else {
+            existing.setDepartmentHead(null);
+        }
 
         return departmentRepository.save(existing);
     }
@@ -42,32 +60,43 @@ public class DepartmentService {
         departmentRepository.deleteById(id);
     }
 
-    public List<Department> getAllDepartments() {
-        return departmentRepository.findAll();
+    // Pagination support with employees excluded
+    public Page<Department> getAllDepartmentsWithoutEmployees(Pageable pageable) {
+        return departmentRepository.findAll(pageable);
     }
 
-    public Department getDepartmentById(Long id) {
-        return departmentRepository.findById(id)
+    // Pagination support with employees included (mapping done later)
+    public Page<Department> getAllDepartmentsWithEmployees(Pageable pageable) {
+        return departmentRepository.findAll(pageable);
+    }
+
+    // Single department WITHOUT employees
+    public DepartmentDto getDepartmentWithoutEmployees(Long id) {
+        Department dept = departmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
+        return new DepartmentDto(dept.getId(), dept.getName(), dept.getCreationDate());
     }
 
-    public Object getDepartmentDetails(Long id, String expand) {
-        Department department = getDepartmentById(id);
+    // Single department WITH employees
+    public DepartmentWithEmployeeDto getDepartmentWithEmployees(Long id) {
+        Department dept = departmentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Department not found"));
+        return mapToDepartmentWithEmployeeDto(dept);
+    }
 
-        if ("employee".equalsIgnoreCase(expand)) {
-            List<EmployeeLookupDto> employeeDtos = department.getEmployees()
-                    .stream()
-                    .map(emp -> new EmployeeLookupDto(emp.getId(), emp.getName()))
-                    .collect(Collectors.toList());
+    // Map Department entity to DTO with employee summaries
+    public DepartmentWithEmployeeDto mapToDepartmentWithEmployeeDto(Department dept) {
+        List<EmployeeLookupDto> employeeDtos = dept.getEmployees()
+                .stream()
+                .map(emp -> new EmployeeLookupDto(emp.getId(), emp.getName()))
+                .collect(Collectors.toList());
 
-            return new DepartmentWithEmployeeDto(
-                    department.getId(),
-                    department.getName(),
-                    department.getCreationDate(),
-                    employeeDtos
-            );
-        }
-
-        return department;
+        return new DepartmentWithEmployeeDto(
+                dept.getId(),
+                dept.getName(),
+                dept.getCreationDate(),
+                dept.getDepartmentHead(),
+                employeeDtos
+        );
     }
 }

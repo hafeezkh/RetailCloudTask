@@ -1,6 +1,5 @@
 package com.RetailCloudTask1.EmployeeManagement.model;
 
-
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -18,6 +17,7 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Department {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,11 +28,10 @@ public class Department {
 
     @OneToOne
     @JoinColumn(name = "head_id")
-    @JsonIgnoreProperties({"department", "reportingManager"})
+    @JsonIgnoreProperties({"department", "reportingManager", "hibernateLazyInitializer", "handler"})
     private Employee departmentHead;
 
     @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
-    @JsonIgnoreProperties({"department", "reportingManager"})
+    @JsonIgnoreProperties({"department", "reportingManager", "hibernateLazyInitializer", "handler"})
     private List<Employee> employees;
-
 }

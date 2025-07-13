@@ -4,22 +4,39 @@ import com.RetailCloudTask1.EmployeeManagement.dto.EmployeeDto;
 import com.RetailCloudTask1.EmployeeManagement.dto.EmployeeLookupDto;
 import com.RetailCloudTask1.EmployeeManagement.model.Employee;
 import com.RetailCloudTask1.EmployeeManagement.service.EmployeeService;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
 
 @RestController
-@RequestMapping("/api/employees")
+@RequestMapping("/api/employee")
 @RequiredArgsConstructor
 public class EmployeeController {
 
     private final EmployeeService employeeService;
+    private final ObjectMapper objectMapper;
 
     @PostMapping
-    public ResponseEntity<Employee> createEmployee(@RequestBody Employee employee) {
-        return ResponseEntity.ok(employeeService.createEmployee(employee));
+    public ResponseEntity<?> createEmployeeOrList(@RequestBody String rawJson) {
+        try {
+            JavaType type = objectMapper.getTypeFactory().constructCollectionType(List.class, Employee.class);
+            List<Employee> employees = objectMapper.readValue(rawJson, type);
+            return ResponseEntity.ok(employeeService.saveAllEmployees(employees));
+        } catch (Exception e) {
+            try {
+                Employee employee = objectMapper.readValue(rawJson, Employee.class);
+                return ResponseEntity.ok(employeeService.createEmployee(employee));
+            } catch (Exception ex) {
+                return ResponseEntity.badRequest().body("Invalid JSON format");
+            }
+        }
     }
 
     @PutMapping("/{id}")
@@ -38,9 +55,43 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.getEmployeeDtoById(id));
     }
 
+
     @GetMapping
-    public ResponseEntity<List<EmployeeLookupDto>> getAllEmployees() {
-        return ResponseEntity.ok(employeeService.getAllNameAndIds());
+    public ResponseEntity<?> getAllEmployees(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(value = "lookup", required = false) Boolean lookup) {
+
+        Pageable pageable = PageRequest.of(page, 20);
+
+        Page<Employee> employeePage = employeeService.getAllEmployees(pageable);
+
+        if (lookup != null && lookup) {
+            List<EmployeeLookupDto> lookups = employeePage.getContent()
+                    .stream()
+                    .map(emp -> new EmployeeLookupDto(emp.getId(), emp.getName()))
+                    .toList();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("employees", lookups);
+            response.put("currentPage", employeePage.getNumber());
+            response.put("totalPages", employeePage.getTotalPages());
+            response.put("totalItems", employeePage.getTotalElements());
+
+            return ResponseEntity.ok(response);
+        } else {
+            List<EmployeeDto> fullList = employeePage.getContent()
+                    .stream()
+                    .map(employeeService::convertToEmployeeDto)
+                    .toList();
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("employees", fullList);
+            response.put("currentPage", employeePage.getNumber());
+            response.put("totalPages", employeePage.getTotalPages());
+            response.put("totalItems", employeePage.getTotalElements());
+
+            return ResponseEntity.ok(response);
+        }
     }
 
     @PutMapping("/{employeeId}/department/{departmentId}")
@@ -48,3 +99,4 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.changeDepartment(employeeId, departmentId));
     }
 }
+
