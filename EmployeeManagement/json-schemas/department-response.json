@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "id": {"type": "integer"},
+    "name": {"type": "string"},
+    "creationDate": {"type": "string", "format": "date"},
+    "departmentHead": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer"},
+        "name": {"type": "string"}
+      }
+    },
+    "employees": {
+      "type": "array",
+      "items": {"$ref": "employee-response.json"}
+    }
+  }
+}

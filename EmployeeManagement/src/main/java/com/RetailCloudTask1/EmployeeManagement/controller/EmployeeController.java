@@ -59,9 +59,10 @@ public class EmployeeController {
     @GetMapping
     public ResponseEntity<?> getAllEmployees(
             @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(value = "lookup", required = false) Boolean lookup) {
 
-        Pageable pageable = PageRequest.of(page, 20);
+        Pageable pageable = PageRequest.of(page, size);
 
         Page<Employee> employeePage = employeeService.getAllEmployees(pageable);
 

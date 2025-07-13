@@ -1,0 +1,18 @@
+
+
+ `/json-schemas/employee-request.json
+{
+"type": "object",
+"properties": {
+"name": {"type": "string"},
+"dateOfBirth": {"type": "string", "format": "date"},
+"salary": {"type": "number"},
+"address": {"type": "string"},
+"role": {"type": "string"},
+"joiningDate": {"type": "string", "format": "date"},
+"yearlyBonusPercentage": {"type": "number"},
+"departmentId": {"type": "integer"},
+"reportingManagerId": {"type": "integer"}
+},
+"required": ["name", "dateOfBirth", "salary", "departmentId"]
+}
