@@ -60,31 +60,31 @@ public class DepartmentService {
         departmentRepository.deleteById(id);
     }
 
-    // Pagination support with employees excluded
+    
     public Page<Department> getAllDepartmentsWithoutEmployees(Pageable pageable) {
         return departmentRepository.findAll(pageable);
     }
 
-    // Pagination support with employees included (mapping done later)
+    
     public Page<Department> getAllDepartmentsWithEmployees(Pageable pageable) {
         return departmentRepository.findAll(pageable);
     }
 
-    // Single department WITHOUT employees
+    
     public DepartmentDto getDepartmentWithoutEmployees(Long id) {
         Department dept = departmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         return new DepartmentDto(dept.getId(), dept.getName(), dept.getCreationDate());
     }
 
-    // Single department WITH employees
+ 
     public DepartmentWithEmployeeDto getDepartmentWithEmployees(Long id) {
         Department dept = departmentRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Department not found"));
         return mapToDepartmentWithEmployeeDto(dept);
     }
 
-    // Map Department entity to DTO with employee summaries
+   
     public DepartmentWithEmployeeDto mapToDepartmentWithEmployeeDto(Department dept) {
         List<EmployeeLookupDto> employeeDtos = dept.getEmployees()
                 .stream()
